@@ -1,0 +1,21 @@
+# Build artifacts
+__pycache__/
+build/
+dist/
+installer_output/
+*.spec.bak
+
+# Local app data (never contains real job data now — stored in %USERPROFILE%\.soo_extractor)
+Projects/
+
+# Claude Code session data
+.claude/
+
+# Real customer deliverables — must never be committed
+RYUKO VI.xlsm
+SOJU VI.xlsm
+WOODDAYC_SOO.pdf
+WoodFld-Daycare VI.xlsm
+
+# Legacy/unused prototype script
+soo_extractor.py

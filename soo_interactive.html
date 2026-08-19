@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sequence of Operations - Fire Alarm System</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --primary: #FF7002;
+  --primary-dark: #E56300;
+  --dark: #232728;
+  --dark-light: #2d3233;
+  --text: #112337;
+  --text-light: #69727d;
+  --bg-warm: #EFE6E1;
+  --bg-light: #f8f6f4;
+  --white: #ffffff;
+  --success: #28a745;
+  --warning: #ffc107;
+  --danger: #dc3545;
+  --info: #17a2b8;
+  --border: #e0d8d2;
+  --shadow: 0 4px 24px rgba(0,0,0,0.08);
+  --shadow-lg: 0 12px 48px rgba(0,0,0,0.12);
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Roboto', sans-serif;
+  background: var(--bg-light);
+  color: var(--text);
+  line-height: 1.6;
+}
+
+h1, h2, h3, h4, h5 { font-family: 'Poppins', sans-serif; }
+
+/* ── LOADING SCREEN ── */
+#loading-screen {
+  position: fixed; inset: 0; z-index: 9999;
+  background: var(--dark);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  transition: opacity 0.5s;
+}
+#loading-screen.hidden { opacity: 0; pointer-events: none; }
+#loading-screen .logo-loader { width: 80px; margin-bottom: 24px; animation: pulse 1.5s infinite; }
+#loading-screen h2 { color: var(--white); font-size: 1.4rem; margin-bottom: 8px; }
+#loading-screen p { color: var(--text-light); font-size: 0.9rem; }
+.loader-bar { width: 200px; height: 3px; background: var(--dark-light); border-radius: 3px; margin-top: 20px; overflow: hidden; }
+.loader-bar::after { content: ''; display: block; width: 60%; height: 100%; background: var(--primary); border-radius: 3px; animation: load 1.2s ease-in-out infinite; }
+@keyframes load { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+@keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+
+/* ── UPLOAD SCREEN ── */
+#upload-screen {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, var(--dark) 0%, #1a1d1e 100%);
+}
+.upload-card {
+  background: var(--white); border-radius: var(--radius);
+  padding: 48px; max-width: 560px; width: 90%;
+  box-shadow: var(--shadow-lg); text-align: center;
+}
+.upload-card img { width: 100px; margin-bottom: 16px; }
+.upload-card h1 { font-size: 1.6rem; color: var(--dark); margin-bottom: 4px; }
+.upload-card .subtitle { color: var(--text-light); font-size: 0.95rem; margin-bottom: 32px; }
+.drop-zone {
+  border: 2px dashed var(--border); border-radius: var(--radius);
+  padding: 40px 20px; cursor: pointer; transition: all 0.3s;
+  background: var(--bg-light);
+}
+.drop-zone:hover, .drop-zone.dragover { border-color: var(--primary); background: #fff8f2; }
+.drop-zone .icon { font-size: 2.5rem; margin-bottom: 8px; }
+.drop-zone p { color: var(--text-light); font-size: 0.9rem; }
+.drop-zone strong { color: var(--primary); }
+#file-input { display: none; }
+.upload-info { margin-top: 20px; font-size: 0.8rem; color: var(--text-light); }
+
+/* ── MAIN APP ── */
+#app { display: none; }
+
+/* Header */
+.app-header {
+  background: var(--dark);
+  padding: 0 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 64px; position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+}
+.app-header .brand { display: flex; align-items: center; gap: 12px; }
+.app-header .brand img { height: 36px; }
+.app-header .brand span { color: var(--white); font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 1rem; }
+.app-header .job-badge {
+  background: var(--primary); color: var(--white);
+  padding: 4px 16px; border-radius: 20px;
+  font-weight: 600; font-size: 0.85rem;
+}
+.header-actions { display: flex; gap: 8px; }
+.btn-header {
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+  color: var(--white); padding: 8px 16px; border-radius: var(--radius-sm);
+  cursor: pointer; font-size: 0.85rem; font-family: 'Roboto', sans-serif;
+  transition: all 0.2s;
+}
+.btn-header:hover { background: var(--primary); border-color: var(--primary); }
+
+/* Navigation */
+.section-nav {
+  background: var(--white); border-bottom: 1px solid var(--border);
+  padding: 0 32px; overflow-x: auto; white-space: nowrap;
+  position: sticky; top: 64px; z-index: 99;
+}
+.section-nav a {
+  display: inline-block; padding: 14px 20px;
+  color: var(--text-light); text-decoration: none;
+  font-size: 0.85rem; font-weight: 500;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+}
+.section-nav a:hover { color: var(--primary); }
+.section-nav a.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+/* Content */
+.content { max-width: 1100px; margin: 0 auto; padding: 32px; }
+
+/* Cards */
+.card {
+  background: var(--white); border-radius: var(--radius);
+  box-shadow: var(--shadow); margin-bottom: 24px;
+  overflow: hidden; scroll-margin-top: 140px;
+}
+.card-header {
+  padding: 20px 28px; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+  transition: background 0.2s;
+}
+.card-header:hover { background: var(--bg-light); }
+.card-header h2 { font-size: 1.1rem; display: flex; align-items: center; gap: 10px; }
+.card-header .section-num {
+  background: var(--primary); color: var(--white);
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.8rem; font-weight: 700; flex-shrink: 0;
+}
+.card-header .chevron {
+  width: 20px; height: 20px; transition: transform 0.3s;
+  color: var(--text-light);
+}
+.card-header.collapsed .chevron { transform: rotate(-90deg); }
+.card-body { padding: 0 28px 24px; }
+.card-body.collapsed { display: none; }
+
+/* Cover / Hero */
+.hero-card {
+  background: linear-gradient(135deg, var(--dark) 0%, #1a2030 100%);
+  color: var(--white); padding: 48px; text-align: center;
+  border-radius: var(--radius); margin-bottom: 24px;
+  position: relative; overflow: hidden;
+}
+.hero-card::before {
+  content: ''; position: absolute; top: -50%; right: -20%;
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, rgba(255,112,2,0.15) 0%, transparent 70%);
+  border-radius: 50%;
+}
+.hero-card img { height: 60px; margin-bottom: 16px; position: relative; }
+.hero-card h1 { font-size: 2rem; font-weight: 700; margin-bottom: 4px; position: relative; }
+.hero-card .hero-subtitle { color: rgba(255,255,255,0.7); font-size: 1.1rem; margin-bottom: 24px; position: relative; }
+.hero-meta {
+  display: flex; justify-content: center; gap: 32px; flex-wrap: wrap;
+  position: relative;
+}
+.hero-meta-item { text-align: center; }
+.hero-meta-item .label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.5); }
+.hero-meta-item .value { font-size: 1.1rem; font-weight: 600; color: var(--primary); }
+
+/* Stats row */
+.stats-row {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px; margin-bottom: 24px;
+}
+.stat-card {
+  background: var(--white); border-radius: var(--radius-sm);
+  padding: 16px; text-align: center; box-shadow: var(--shadow);
+  border-left: 4px solid var(--primary);
+}
+.stat-card .stat-num { font-size: 1.8rem; font-weight: 700; color: var(--primary); font-family: 'Poppins'; }
+.stat-card .stat-label { font-size: 0.75rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* Tables */
+.data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.data-table thead { background: var(--dark); color: var(--white); }
+.data-table th { padding: 10px 14px; text-align: left; font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; }
+.data-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.data-table tbody tr { transition: background 0.15s; cursor: pointer; }
+.data-table tbody tr:hover { background: #fff8f2; }
+.data-table tbody tr:nth-child(even) { background: var(--bg-light); }
+.data-table tbody tr:nth-child(even):hover { background: #fff8f2; }
+
+/* Device type badges */
+.badge {
+  display: inline-block; padding: 2px 10px; border-radius: 12px;
+  font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;
+}
+.badge-alarm { background: #fce4ec; color: #c62828; }
+.badge-supv { background: #fff3e0; color: #e65100; }
+.badge-monitor { background: #e3f2fd; color: #1565c0; }
+.badge-output { background: #e8f5e9; color: #2e7d32; }
+.badge-notify { background: #ede7f6; color: #4527a0; }
+
+/* Sequence steps */
+.sequence-steps { margin: 16px 0; }
+.step {
+  display: flex; gap: 16px; padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.step:last-child { border-bottom: none; }
+.step-num {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--primary); color: var(--white);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 0.85rem; flex-shrink: 0;
+}
+.step-content { flex: 1; }
+.step-content h4 { font-size: 0.9rem; margin-bottom: 2px; }
+.step-content p { font-size: 0.85rem; color: var(--text-light); }
+
+/* Flow diagram */
+.flow-diagram {
+  display: flex; align-items: center; justify-content: center;
+  flex-wrap: wrap; gap: 8px; margin: 20px 0; padding: 20px;
+  background: var(--bg-light); border-radius: var(--radius-sm);
+}
+.flow-box {
+  background: var(--white); border: 2px solid var(--border);
+  padding: 10px 18px; border-radius: var(--radius-sm);
+  font-size: 0.82rem; font-weight: 500; text-align: center;
+  min-width: 120px; transition: all 0.3s;
+}
+.flow-box:hover { border-color: var(--primary); transform: translateY(-2px); box-shadow: var(--shadow); }
+.flow-box.alarm { border-color: var(--danger); background: #fce4ec; }
+.flow-box.action { border-color: var(--primary); background: #fff3e0; }
+.flow-box.output { border-color: var(--success); background: #e8f5e9; }
+.flow-arrow { font-size: 1.2rem; color: var(--primary); font-weight: 700; }
+
+/* Multi-criteria group */
+.mc-group {
+  background: var(--bg-light); border-radius: var(--radius-sm);
+  padding: 20px; margin-bottom: 16px; border-left: 4px solid var(--primary);
+}
+.mc-group h4 { margin-bottom: 12px; color: var(--dark); }
+.mc-sensor {
+  display: flex; align-items: center; gap: 12px; padding: 8px 0;
+  border-bottom: 1px solid var(--border); font-size: 0.85rem;
+}
+.mc-sensor:last-child { border-bottom: none; }
+.mc-sensor .sensor-icon { font-size: 1.2rem; }
+.mc-sensor .sensor-addr { font-weight: 600; color: var(--dark); min-width: 80px; }
+
+/* C29 Checklist */
+.checklist-item {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 16px; border-radius: var(--radius-sm);
+  margin-bottom: 8px; background: var(--bg-light);
+  transition: all 0.2s;
+}
+.checklist-item:hover { background: #fff8f2; }
+.check-icon {
+  width: 24px; height: 24px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem; font-weight: 700; flex-shrink: 0; margin-top: 2px;
+}
+.check-yes { background: #d4edda; color: #155724; }
+.check-no { background: #f8d7da; color: #721c24; }
+.check-na { background: #e2e3e5; color: #383d41; }
+.checklist-item .check-label { font-size: 0.9rem; flex: 1; }
+.checklist-item .check-ref { font-size: 0.75rem; color: var(--text-light); }
+
+/* Location grid */
+.location-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.location-card {
+  background: var(--bg-light); border-radius: var(--radius-sm);
+  padding: 16px; border-left: 3px solid var(--primary);
+  transition: all 0.2s;
+}
+.location-card:hover { background: #fff8f2; transform: translateX(4px); }
+.location-card h5 { font-size: 0.85rem; margin-bottom: 8px; color: var(--dark); }
+.location-card .loc-devices { font-size: 0.8rem; color: var(--text-light); }
+.location-card .loc-count { float: right; background: var(--primary); color: var(--white); width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; }
+
+/* Device detail modal */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  z-index: 1000; display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity 0.3s;
+}
+.modal-overlay.active { opacity: 1; pointer-events: all; }
+.modal {
+  background: var(--white); border-radius: var(--radius);
+  max-width: 520px; width: 90%; max-height: 80vh; overflow-y: auto;
+  box-shadow: var(--shadow-lg); transform: translateY(20px);
+  transition: transform 0.3s;
+}
+.modal-overlay.active .modal { transform: translateY(0); }
+.modal-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.modal-header h3 { font-size: 1.1rem; }
+.modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-light); }
+.modal-body { padding: 24px; }
+.modal-body .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.modal-body .detail-row:last-child { border-bottom: none; }
+.modal-body .detail-label { font-weight: 600; font-size: 0.85rem; color: var(--text-light); }
+.modal-body .detail-value { font-size: 0.9rem; color: var(--dark); }
+
+/* Footer */
+.app-footer {
+  background: var(--dark); color: rgba(255,255,255,0.5);
+  text-align: center; padding: 24px; margin-top: 48px;
+  font-size: 0.8rem;
+}
+.app-footer strong { color: var(--primary); }
+
+/* Print styles */
+@media print {
+  .app-header, .section-nav, .btn-header, .header-actions { display: none; }
+  .card { break-inside: avoid; box-shadow: none; border: 1px solid #ddd; }
+  .card-body.collapsed { display: block !important; }
+  body { background: white; }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .content { padding: 16px; }
+  .hero-card { padding: 32px 20px; }
+  .hero-card h1 { font-size: 1.4rem; }
+  .hero-meta { gap: 16px; }
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .app-header { padding: 0 16px; }
+  .section-nav { padding: 0 16px; }
+}
+
+/* Search highlight */
+.highlight { background: #fff3cd; padding: 1px 4px; border-radius: 3px; }
+
+/* Tooltip */
+.tooltip-trigger { border-bottom: 1px dotted var(--text-light); cursor: help; }
+</style>
+</head>
+<body>
+
+<!-- UPLOAD SCREEN -->
+<div id="upload-screen">
+  <div class="upload-card">
+    <img src="https://defensefirepro.com/wp-content/uploads/2025/12/qtq_95.webp" alt="Defense Fire Protection" onerror="this.style.display='none'">
+    <h1>SOO Extraction Tool</h1>
+    <p class="subtitle">Generate an interactive Sequence of Operations from your Autocall program file</p>
+    <div class="drop-zone" id="drop-zone">
+      <div class="icon">&#128196;</div>
+      <p>Drag & drop your <strong>.csv</strong> program export here</p>
+      <p style="margin-top:8px; font-size:0.8rem;">or click to browse</p>
+    </div>
+    <input type="file" id="file-input" accept=".csv">
+    <p class="upload-info">Supported: Autocall Programmer CSV point exports (.csv)</p>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div id="loading-screen" class="hidden">
+  <img class="logo-loader" src="https://defensefirepro.com/wp-content/uploads/2025/12/qtq_95.webp" alt="" onerror="this.style.display='none'">
+  <h2>Analyzing Program...</h2>
+  <p id="loading-status">Parsing device points...</p>
+  <div class="loader-bar"></div>
+</div>
+
+<!-- DEVICE DETAIL MODAL -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-title">Device Details</h3>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <header class="app-header">
+    <div class="brand">
+      <img src="https://defensefirepro.com/wp-content/uploads/2025/12/qtq_95.webp" alt="DFP" onerror="this.style.display='none'">
+      <span>Defense Fire Protection</span>
+    </div>
+    <span class="job-badge" id="job-badge">LOADING</span>
+    <div class="header-actions">
+      <button class="btn-header" onclick="expandAll()">&#9660; Expand All</button>
+      <button class="btn-header" onclick="collapseAll()">&#9650; Collapse All</button>
+    </div>
+  </header>
+
+  <nav class="section-nav" id="section-nav"></nav>
+
+  <main class="content" id="main-content"></main>
+
+  <footer class="app-footer">
+    <p>Sequence of Operations generated by <strong>Defense Fire Protection</strong></p>
+    <p style="margin-top:4px;">CAN/ULC-S524 C29 Documentation | <a href="https://defensefirepro.com" target="_blank" style="color:var(--primary);">defensefirepro.com</a></p>
+  </footer>
+</div>
+
+<script>
+// ─── DEVICE DEFINITIONS ───
+const MONITORING_NOTE = ' <em style="color:var(--text-light);font-size:0.85em;">(if connected to third-party monitoring)</em>';
+
+const DEVICE_TYPES = {
+  PHOTO:    { desc: 'Photoelectric Smoke Detector',              cat: 'SMOKE',  fn: 'ALARM',   icon: '&#128168;' },
+  MPHOTO:   { desc: 'Multi-Criteria Photoelectric Smoke Sensor', cat: 'SMOKE',  fn: 'ALARM',   icon: '&#128168;' },
+  ION:      { desc: 'Ionization Smoke Detector',                 cat: 'SMOKE',  fn: 'ALARM',   icon: '&#128168;' },
+  LASER:    { desc: 'Laser Smoke Detector',                      cat: 'SMOKE',  fn: 'ALARM',   icon: '&#128168;' },
+  HEAT:     { desc: 'Heat Detector',                             cat: 'HEAT',   fn: 'ALARM',   icon: '&#127777;' },
+  MHEAT:    { desc: 'Multi-Criteria Heat Sensor',                cat: 'HEAT',   fn: 'ALARM',   icon: '&#127777;' },
+  MAHPO:    { desc: 'Multi-Criteria Heat/Photo Sensor',          cat: 'HEAT',   fn: 'ALARM',   icon: '&#127777;' },
+  MCOP:     { desc: 'Multi-Criteria CO/Photo Base',              cat: 'MULTI',  fn: 'SUPV',    icon: '&#128260;' },
+  MCOGAS:   { desc: 'Multi-Criteria CO Gas Sensor',              cat: 'CO',     fn: 'SUPV',    icon: '&#9888;' },
+  MAOFF:    { desc: 'Multi-Criteria Auxiliary Off',               cat: 'MULTI',  fn: 'SUPV',    icon: '&#128260;' },
+  ADRPUL:   { desc: 'Addressable Manual Pull Station',           cat: 'PULL',   fn: 'ALARM',   icon: '&#128680;' },
+  PULL:     { desc: 'Manual Pull Station',                       cat: 'PULL',   fn: 'ALARM',   icon: '&#128680;' },
+  IDNISO2:  { desc: 'Addressable Isolator Module',               cat: 'ISO',    fn: 'MONITOR', icon: '&#128279;' },
+  IDNISO:   { desc: 'Addressable Isolator Module',               cat: 'ISO',    fn: 'MONITOR', icon: '&#128279;' },
+  IDNMON:   { desc: 'Addressable Monitor Module',                cat: 'MON',    fn: 'MONITOR', icon: '&#128225;' },
+  MON:      { desc: 'Monitor Module',                            cat: 'MON',    fn: 'MONITOR', icon: '&#128225;' },
+  RIAM:     { desc: 'Addressable Relay Module',                  cat: 'RELAY',  fn: 'OUTPUT',  icon: '&#9889;' },
+  RELAY:    { desc: 'Relay Module',                               cat: 'RELAY',  fn: 'OUTPUT',  icon: '&#9889;' },
+  NAC:      { desc: 'Notification Appliance Circuit',                  cat: 'NAC',    fn: 'NOTIFY',  icon: '&#128276;' },
+  TRUEALERT:{ desc: 'TrueAlert Addressable Notification Appliance',    cat: 'NAC',    fn: 'NOTIFY',  icon: '&#128276;' },
+  AV:       { desc: 'TrueAlert Addressable Horn/Strobe (Audio-Visual)',cat: 'NAC',    fn: 'NOTIFY',  icon: '&#128266;' },
+  VO:       { desc: 'TrueAlert Addressable Strobe (Visual Only)',      cat: 'NAC',    fn: 'NOTIFY',  icon: '&#128269;' },
+  AO:       { desc: 'TrueAlert Addressable Horn (Audio Only)',         cat: 'NAC',    fn: 'NOTIFY',  icon: '&#128266;' },
+  ISO:      { desc: 'Addressable Short Circuit Isolator',              cat: 'ISO',    fn: 'MONITOR', icon: '&#128279;' },
+  IAM:      { desc: 'Addressable Monitor Module',                      cat: 'MON',    fn: 'ALARM',   icon: '&#128225;' },
+  WFLOW:    { desc: 'Waterflow Switch',                                cat: 'WFLOW',  fn: 'ALARM',   icon: '&#128167;' },
+  TAMP:     { desc: 'Tamper Switch',                                   cat: 'TAMPER', fn: 'SUPV',    icon: '&#128274;' },
+};
+
+const CAT_LABELS = {
+  SMOKE: 'Smoke Detectors', HEAT: 'Heat Detectors', MULTI: 'Multi-Criteria Bases',
+  CO: 'CO Detectors', PULL: 'Pull Stations', ISO: 'Isolator Modules',
+  MON: 'Monitor Modules', RELAY: 'Relay Modules', NAC: 'Notification Appliances',
+  WFLOW: 'Waterflow Devices', TAMPER: 'Tamper Devices',
+};
+
+const SIGNAL_LABELS = {
+  SMOKE: 'Smoke Detection', SUPDET: 'Supervisory Detection', COGASSUPV: 'CO Gas Supervisory',
+  FAHPO: 'Heat/Photo', UTILITY: 'Utility/Supervisory', PULL: 'Manual Fire Alarm',
+  ISO: 'Isolator Module', DUCT: 'Duct Smoke Detection', RRELAY: 'Relay Output',
+};
+
+function getBadgeClass(fn) {
+  if (fn === 'ALARM') return 'badge-alarm';
+  if (fn === 'SUPV') return 'badge-supv';
+  if (fn === 'MONITOR') return 'badge-monitor';
+  if (fn === 'NOTIFY') return 'badge-notify';
+  return 'badge-output';
+}
+
+// ─── PANEL MODEL DETECTION ───
+function detectPanelModel(devices) {
+  const types = devices.map(d => d.device_type);
+  const hasIDNISO2 = types.includes('IDNISO2');
+  const hasMCOP = types.includes('MCOP');
+  const hasRIAM = types.includes('RIAM');
+  const count = devices.length;
+
+  // 4007 indicators: IDNISO2 isolators, MCOP multi-criteria, small to mid SLC
+  // 4010 indicators: larger point counts, multiple SLCs
+  // 4007ES: same as 4007 but newer firmware indicators
+  if (count <= 127 && hasIDNISO2) return 'Autocall 4007';
+  if (count > 127 && count <= 254) return 'Autocall 4007';
+  if (count > 254) return 'Autocall 4010';
+  return 'Autocall 4007';
+}
+
+// ─── CSV PARSING ───
+function parseCSV(text) {
+  const devices = [];
+  const lines = text.split('\n');
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const parts = trimmed.split(',').map(p => p.trim());
+    if (parts.length >= 4 && parts[0] && parts[1]) {
+      const info = DEVICE_TYPES[parts[1]] || { desc: parts[1], cat: 'OTHER', fn: 'UNKNOWN', icon: '&#10067;' };
+      devices.push({
+        address: parts[0], device_type: parts[1],
+        signal_type: parts[2], location: parts[3],
+        desc: info.desc, cat: info.cat, fn: info.fn, icon: info.icon,
+      });
+    }
+  }
+  return devices;
+}
+
+// ─── GROUPING HELPERS ───
+function groupBy(devices, key) {
+  const groups = {};
+  for (const d of devices) {
+    const k = d[key];
+    if (!groups[k]) groups[k] = [];
+    groups[k].push(d);
+  }
+  return groups;
+}
+
+function getMultiCriteriaGroups(devices) {
+  const groups = {};
+  for (const d of devices) {
+    const m = d.address.match(/^(M\d+-\d+)/);
+    if (m) {
+      if (!groups[m[1]]) groups[m[1]] = [];
+      groups[m[1]].push(d);
+    }
+  }
+  return Object.fromEntries(Object.entries(groups).filter(([k, v]) => v.length > 1 && v.some(d => d.device_type === 'MCOP')));
+}
+
+// ─── RENDER FUNCTIONS ───
+function renderFlowDiagram(steps) {
+  return `<div class="flow-diagram">${steps.map((s, i) =>
+    `<div class="flow-box ${s.type || ''}">${s.text}</div>${i < steps.length - 1 ? '<span class="flow-arrow">&#10145;</span>' : ''}`
+  ).join('')}</div>`;
+}
+
+function renderSequenceSteps(steps) {
+  return `<div class="sequence-steps">${steps.map((s, i) =>
+    `<div class="step"><div class="step-num">${i + 1}</div><div class="step-content"><h4>${s.title}</h4><p>${s.desc}</p></div></div>`
+  ).join('')}</div>`;
+}
+
+function renderDeviceTable(devices, showSignal = true) {
+  return `<table class="data-table"><thead><tr>
+    <th>Address</th><th>Type</th>${showSignal ? '<th>Signal</th>' : ''}<th>Location</th><th>Description</th><th>Function</th>
+  </tr></thead><tbody>${devices.map(d => `<tr onclick="showDeviceDetail('${d.address}')">
+    <td><strong>${d.address}</strong></td>
+    <td>${d.device_type}</td>
+    ${showSignal ? `<td>${d.signal_type}</td>` : ''}
+    <td>${d.location}</td>
+    <td>${d.desc}</td>
+    <td><span class="badge ${getBadgeClass(d.fn)}">${d.fn}</span></td>
+  </tr>`).join('')}</tbody></table>`;
+}
+
+// ─── MAIN RENDER ───
+function renderApp(devices) {
+  const jobName = document.title.includes('WOODDAYC') ? 'WOODDAYC' : 'Fire Alarm System';
+  const panel = detectPanelModel(devices);
+  const byCat = groupBy(devices, 'cat');
+  const byLoc = groupBy(devices, 'location');
+  const mcGroups = getMultiCriteriaGroups(devices);
+  const smokeDevs = byCat.SMOKE || [];
+  const pullDevs = byCat.PULL || [];
+  const heatDevs = byCat.HEAT || [];
+  const coDevs = byCat.CO || [];
+  const isoDevs = byCat.ISO || [];
+  const relayDevs = byCat.RELAY || [];
+  const areaSmoke = smokeDevs.filter(d => d.signal_type === 'SMOKE');
+  const ductSmoke = smokeDevs.filter(d => d.signal_type === 'DUCT');
+
+  // Derive job name from filename if possible
+  const fname = window._fileName || 'Program';
+  const jn = fname.replace(/\.csv$/i, '').toUpperCase();
+
+  document.getElementById('job-badge').textContent = jn;
+  document.title = `SOO - ${jn} | Defense Fire Protection`;
+
+  const sections = [];
+  let sn = 1;
+
+  // ── HERO ──
+  let heroHTML = `<div class="hero-card">
+    <img src="https://defensefirepro.com/wp-content/uploads/2025/12/qtq_95.webp" alt="DFP" onerror="this.style.display='none'">
+    <h1>SEQUENCE OF OPERATIONS</h1>
+    <p class="hero-subtitle">Fire Alarm System</p>
+    <div class="hero-meta">
+      <div class="hero-meta-item"><div class="label">Job Name</div><div class="value">${jn}</div></div>
+      <div class="hero-meta-item"><div class="label">Panel</div><div class="value">${panel}</div></div>
+      <div class="hero-meta-item"><div class="label">Total Devices</div><div class="value">${devices.length}</div></div>
+      <div class="hero-meta-item"><div class="label">Locations</div><div class="value">${Object.keys(byLoc).length}</div></div>
+      <div class="hero-meta-item"><div class="label">Date</div><div class="value">${new Date().toLocaleDateString('en-CA', {year:'numeric',month:'short',day:'numeric'})}</div></div>
+    </div>
+  </div>`;
+
+  // Stats
+  const catOrder = ['SMOKE','HEAT','MULTI','CO','PULL','ISO','MON','RELAY','NAC','WFLOW','TAMPER'];
+  heroHTML += `<div class="stats-row">${catOrder.filter(c => byCat[c]).map(c =>
+    `<div class="stat-card"><div class="stat-num">${byCat[c].length}</div><div class="stat-label">${CAT_LABELS[c]}</div></div>`
+  ).join('')}</div>`;
+
+  // ── SECTIONS ──
+
+  // System Overview
+  sections.push({ id: 'overview', num: sn, title: 'System Overview', content: `
+    <p>This document describes the sequence of operations for the <strong>${jn}</strong> fire alarm system utilizing an <strong>${panel}</strong> addressable fire alarm control panel, installed and maintained by <strong>Defense Fire Protection</strong>.</p>
+    <p style="margin-top:12px;">The system provides automatic fire detection, occupant notification, and ancillary equipment control as described in each section below. Click any section header to expand or collapse it.</p>
+    <h3 style="margin-top:20px; font-size:0.95rem;">Device Summary</h3>
+    <table class="data-table" style="margin-top:8px;"><thead><tr><th>Category</th><th>Count</th></tr></thead><tbody>
+    ${catOrder.filter(c => byCat[c]).map((c, i) => `<tr><td>${CAT_LABELS[c]}</td><td><strong>${byCat[c].length}</strong></td></tr>`).join('')}
+    <tr style="background:var(--dark);color:var(--white);"><td><strong>TOTAL</strong></td><td><strong>${devices.length}</strong></td></tr>
+    </tbody></table>
+  `}); sn++;
+
+  // Device Point List (C29 item D, H-iii)
+  sections.push({ id: 'points', num: sn, title: 'Device Point List', content: `
+    <p style="margin-bottom:12px;">Complete list of all field devices on the signaling line circuit (SLC). Click any device for details.</p>
+    ${renderDeviceTable(devices)}
+  `}); sn++;
+
+  // Alarm Signal Operation (C29 item E)
+  if (areaSmoke.length || pullDevs.length || heatDevs.length) {
+    let alarmHTML = '';
+
+    if (areaSmoke.length) {
+      alarmHTML += `<h3 style="margin:16px 0 8px;">Area Smoke Detectors (${areaSmoke.length})</h3>`;
+      alarmHTML += renderDeviceTable(areaSmoke, false);
+      alarmHTML += `<h4 style="margin-top:16px;">Activation Sequence</h4>`;
+      alarmHTML += renderFlowDiagram([
+        {text: 'Smoke Detected', type: 'alarm'},
+        {text: 'Signal to FACP', type: 'action'},
+        {text: 'FIRE ALARM', type: 'alarm'},
+        {text: 'NACs Activate', type: 'output'},
+        {text: 'Signal to Monitoring', type: 'output'},
+      ]);
+      alarmHTML += renderSequenceSteps([
+        {title: 'Detection', desc: 'Photoelectric smoke detector senses products of combustion in the protected area.'},
+        {title: 'Signal Transmission', desc: 'Detector transmits ALARM signal to the Autocall FACP via the SLC.'},
+        {title: 'Panel Annunciation', desc: 'FACP annunciates FIRE ALARM condition. Alarm LED illuminates, LCD displays device address, type, and location.'},
+        {title: 'Occupant Notification', desc: 'All Notification Appliance Circuits (NACs) activate. Audible signals sound EVACUATION tone. Visual signals (strobes) flash.'},
+        {title: 'Central Station', desc: 'FACP transmits alarm signal to the fire signal receiving centre (central monitoring station).' + MONITORING_NOTE},
+      ]);
+    }
+
+    if (ductSmoke.length) {
+      alarmHTML += `<h3 style="margin:24px 0 8px;">Duct Smoke Detectors (${ductSmoke.length})</h3>`;
+      alarmHTML += renderDeviceTable(ductSmoke, false);
+      alarmHTML += renderFlowDiagram([
+        {text: 'Duct Smoke Detected', type: 'alarm'},
+        {text: 'Signal to FACP', type: 'action'},
+        {text: 'FIRE ALARM', type: 'alarm'},
+        {text: 'HVAC Shutdown', type: 'output'},
+        {text: 'NACs Activate', type: 'output'},
+      ]);
+      alarmHTML += renderSequenceSteps([
+        {title: 'Detection', desc: 'Duct smoke detector senses smoke within the HVAC ductwork.'},
+        {title: 'Signal Transmission', desc: 'Detector transmits ALARM signal to the Autocall FACP.'},
+        {title: 'HVAC Shutdown', desc: 'FACP activates relay output to shut down associated HVAC equipment.'},
+        {title: 'Full Alarm', desc: 'All NACs activate and alarm signal is transmitted to monitoring station.' + MONITORING_NOTE},
+      ]);
+    }
+
+    if (pullDevs.length) {
+      alarmHTML += `<h3 style="margin:24px 0 8px;">Manual Pull Stations (${pullDevs.length})</h3>`;
+      alarmHTML += renderDeviceTable(pullDevs, false);
+      alarmHTML += renderFlowDiagram([
+        {text: 'Pull Station Activated', type: 'alarm'},
+        {text: 'Signal to FACP', type: 'action'},
+        {text: 'FIRE ALARM', type: 'alarm'},
+        {text: 'NACs Activate', type: 'output'},
+        {text: 'Signal to Monitoring', type: 'output'},
+      ]);
+    }
+
+    if (heatDevs.length) {
+      alarmHTML += `<h3 style="margin:24px 0 8px;">Heat Detectors / Multi-Criteria Heat Sensors (${heatDevs.length})</h3>`;
+      alarmHTML += renderDeviceTable(heatDevs, true);
+      alarmHTML += renderSequenceSteps([
+        {title: 'Detection', desc: 'Heat sensor detects rate-of-rise or fixed temperature threshold.'},
+        {title: 'Multi-Criteria Evaluation', desc: 'Sensor transmits signal to multi-criteria base. FACP evaluates combined algorithm.'},
+        {title: 'Alarm', desc: 'If ALARM threshold is met, full FIRE ALARM sequence is initiated. NACs activate.'},
+        {title: 'Central Station', desc: 'Alarm signal transmitted to monitoring station.' + MONITORING_NOTE},
+      ]);
+    }
+
+    sections.push({ id: 'alarm', num: sn, title: 'Alarm Signal Operation', content: alarmHTML }); sn++;
+  }
+
+  // Supervisory (C29 item C)
+  if (coDevs.length || (byCat.TAMPER || []).length) {
+    let supvHTML = '';
+    if (coDevs.length) {
+      supvHTML += `<h3 style="margin:0 0 8px;">Carbon Monoxide (CO) Gas Detection (${coDevs.length})</h3>`;
+      supvHTML += renderDeviceTable(coDevs, false);
+      supvHTML += renderFlowDiagram([
+        {text: 'CO Gas Detected', type: 'alarm'},
+        {text: 'Signal to FACP', type: 'action'},
+        {text: 'SUPERVISORY', type: 'action'},
+        {text: 'Signal to Monitoring', type: 'output'},
+      ]);
+      supvHTML += renderSequenceSteps([
+        {title: 'Detection', desc: 'CO gas sensor detects carbon monoxide concentration above the programmed threshold.'},
+        {title: 'Supervisory Signal', desc: 'Sensor transmits SUPERVISORY signal to the Autocall FACP.'},
+        {title: 'Annunciation', desc: 'FACP annunciates CO GAS SUPERVISORY condition. LCD shows CO level and location.'},
+        {title: 'Central Station', desc: 'Supervisory signal transmitted to fire signal receiving centre.' + MONITORING_NOTE},
+        {title: 'Important', desc: 'Notification appliances DO NOT activate for supervisory conditions.'},
+      ]);
+    }
+    sections.push({ id: 'supervisory', num: sn, title: 'Supervisory Devices', content: supvHTML }); sn++;
+  }
+
+  // Multi-Criteria Groups (C29 item H-iii)
+  if (Object.keys(mcGroups).length) {
+    let mcHTML = `<p style="margin-bottom:16px;">The following locations have multi-criteria detection combining smoke, CO gas, and heat sensing in a single detector assembly. Each group provides comprehensive fire and life safety monitoring.</p>`;
+    let gi = 1;
+    for (const [base, group] of Object.entries(mcGroups)) {
+      mcHTML += `<div class="mc-group"><h4>Group ${gi}: ${group[0].location}</h4>`;
+      for (const d of group) {
+        const sigLabel = SIGNAL_LABELS[d.signal_type] || d.signal_type;
+        mcHTML += `<div class="mc-sensor">
+          <span class="sensor-icon">${d.icon}</span>
+          <span class="sensor-addr">${d.address}</span>
+          <span>${d.desc}</span>
+          <span class="badge ${getBadgeClass(d.fn)}" style="margin-left:auto;">${sigLabel}</span>
+        </div>`;
+      }
+      mcHTML += `${renderFlowDiagram([
+        {text: 'Smoke / Heat / CO', type: 'alarm'},
+        {text: 'Multi-Criteria Algorithm', type: 'action'},
+        {text: 'ALARM or SUPERVISORY', type: 'alarm'},
+        {text: 'Appropriate Response', type: 'output'},
+      ])}</div>`;
+      gi++;
+    }
+    sections.push({ id: 'multicriteria', num: sn, title: 'Multi-Criteria Detector Groups', content: mcHTML }); sn++;
+  }
+
+  // Isolator Modules
+  if (isoDevs.length) {
+    sections.push({ id: 'isolators', num: sn, title: 'Isolator / Monitor Modules', content: `
+      <p style="margin-bottom:12px;">Isolator modules protect the Signaling Line Circuit (SLC) from short circuit faults, ensuring system reliability.</p>
+      ${renderDeviceTable(isoDevs, true)}
+      <h4 style="margin-top:16px;">Function</h4>
+      ${renderSequenceSteps([
+        {title: 'Fault Detection', desc: 'Short circuit fault occurs on SLC wiring between devices.'},
+        {title: 'Isolation', desc: 'Isolator module detects the fault and isolates the faulted segment automatically.'},
+        {title: 'Trouble Annunciation', desc: 'FACP annunciates TROUBLE condition for devices on the isolated segment.'},
+        {title: 'Continued Operation', desc: 'All devices on unfaulted SLC segments continue normal operation.'},
+        {title: 'Auto-Restore', desc: 'When the fault is repaired, the isolator automatically restores the segment.'},
+      ])}
+    `}); sn++;
+  }
+
+  // Output / Ancillary Devices (C29 item F)
+  if (relayDevs.length) {
+    let relayHTML = `<p style="margin-bottom:12px;">The following output devices control ancillary building equipment upon alarm conditions.</p>`;
+    relayHTML += renderDeviceTable(relayDevs, true);
+    for (const d of relayDevs) {
+      const isShutdown = /furnace|hvac|shutdown|ahu|fan/i.test(d.location);
+      if (isShutdown) {
+        relayHTML += `<h4 style="margin-top:16px;">${d.address} - ${d.location}</h4>`;
+        relayHTML += renderFlowDiagram([
+          {text: 'ANY Fire Alarm', type: 'alarm'},
+          {text: 'FACP Activates Relay', type: 'action'},
+          {text: d.location, type: 'output'},
+          {text: 'Equipment Shuts Down', type: 'output'},
+        ]);
+        relayHTML += renderSequenceSteps([
+          {title: 'Trigger', desc: 'Upon ANY FIRE ALARM condition on the system.'},
+          {title: 'Relay Activation', desc: `FACP activates relay module ${d.address}.`},
+          {title: 'Contact Operation', desc: 'Relay contact changes state (N.O. closes / N.C. opens).'},
+          {title: 'Equipment Control', desc: `Connected equipment (${d.location}) is shut down.`},
+          {title: 'Reset Required', desc: 'Relay remains active until system is manually RESET at the FACP.'},
+        ]);
+      }
+    }
+    sections.push({ id: 'outputs', num: sn, title: 'Ancillary Equipment / Output Devices', content: relayHTML }); sn++;
+  }
+
+  // System Bypass Controls
+  {
+    const allBypasses = [
+      { name: 'Signal Bypass', match: 'SIGNAL', desc: 'Bypasses Notification Appliance Circuits (NACs). When active, audible and visual signals will NOT activate on alarm. The system still detects and annunciates alarm conditions at the FACP and transmits to monitoring.', icon: '&#128276;' },
+      { name: 'Monitor Bypass', match: 'MON', desc: 'Bypasses monitor module inputs. When active, changes of state on monitored inputs (waterflow, tamper, etc.) will NOT be reported. Isolator modules remain functional.', icon: '&#128225;' },
+      { name: 'Control Point Bypass', match: 'CONTROL', desc: 'Bypasses relay control outputs. When active, relay modules will NOT change state on alarm. Equipment controlled by relays (HVAC shutdown, door holders, etc.) will NOT respond.', icon: '&#9889;' },
+      { name: 'Doorholder Bypass', match: 'DOOR', desc: 'Bypasses door holder relay outputs. When active, magnetic door holders will NOT release on alarm. Fire/smoke doors will remain held open.', icon: '&#128682;' },
+    ];
+    const detectedBypasses = window._bypassSwitches || null;
+    let bypasses, bypassNote;
+    if (detectedBypasses && detectedBypasses.length) {
+      bypasses = allBypasses.filter(bp => detectedBypasses.some(d => d.label.toUpperCase().includes(bp.match)));
+      if (!bypasses.length) bypasses = allBypasses;
+      bypassNote = `<p style="margin-bottom:16px;">The following bypass controls were found programmed into this system (detected from the panel program). When a bypass is activated, it generates a <strong>TROUBLE</strong> condition on the FACP to indicate that a portion of the system is not in normal operation.</p>`;
+    } else {
+      bypasses = allBypasses;
+      bypassNote = `<p style="margin-bottom:16px;">The following bypass controls are commonly programmed into Autocall systems. When a bypass is activated, it generates a <strong>TROUBLE</strong> condition on the FACP to indicate that a portion of the system is not in normal operation. Confirm which bypasses are actually present in this installation.</p>`;
+    }
+    let bypassHTML = bypassNote;
+    for (const bp of bypasses) {
+      bypassHTML += `<div class="mc-group" style="border-left-color: var(--warning);">
+        <h4>${bp.icon} ${bp.name}</h4>
+        <p style="margin-bottom:8px;">${bp.desc}</p>
+        <p style="font-size:0.85rem;"><span class="badge badge-supv">TROUBLE WHEN ACTIVE</span> A trouble signal is generated and transmitted to monitoring whenever this bypass is engaged.</p>
+      </div>`;
+    }
+    bypassHTML += `<h4 style="margin-top:16px;">Bypass Activation Sequence</h4>`;
+    bypassHTML += renderSequenceSteps([
+      { title: 'Activation', desc: 'Authorized personnel activates bypass at the FACP via keyswitch or access code.' },
+      { title: 'Trouble Generated', desc: 'FACP generates a TROUBLE condition indicating the bypass is active. Trouble LED illuminates.' },
+      { title: 'Monitoring Notified', desc: 'Trouble signal transmitted to the fire signal receiving centre.' + MONITORING_NOTE },
+      { title: 'Reduced Protection', desc: 'The bypassed function is disabled. Remainder of system continues normal operation.' },
+      { title: 'Restoration', desc: 'When bypass is deactivated, trouble clears and normal operation resumes.' },
+    ]);
+    sections.push({ id: 'bypasses', num: sn, title: 'System Bypass Controls', content: bypassHTML }); sn++;
+  }
+
+  // FACP Operating Controls (C29 item C)
+  {
+    const detectedCityRelays = window._cityRelays || [];
+    let cityHTML;
+    if (detectedCityRelays.length) {
+      cityHTML = `<table class="data-table"><thead><tr><th>Address</th><th>Function</th><th>Description (as programmed)</th></tr></thead><tbody>` +
+        detectedCityRelays.map(r => `<tr><td><strong>${r.address}</strong></td><td>${r.kind}</td><td>${r.label}</td></tr>`).join('') +
+        `</tbody></table>`;
+    } else {
+      cityHTML = `<table class="data-table"><thead><tr><th>Circuit</th><th>Function</th></tr></thead><tbody>
+      <tr><td><strong>City Fire / OPT Relay 1</strong></td><td>Activates on ANY fire alarm. Transmits alarm to fire signal receiving centre.</td></tr>
+      <tr><td><strong>City Supervisory / OPT Relay 2</strong></td><td>Activates on supervisory conditions. Transmits to monitoring.</td></tr>
+      <tr><td><strong>City Trouble / OPT Relay 3</strong></td><td>Activates on trouble conditions. Transmits to monitoring.</td></tr>
+      </tbody></table><p style="margin-top:8px; font-size:0.8rem; color: var(--text-light);">No city/monitoring relays were detected in the panel program - this system may be stand-alone, or confirm connection manually.</p>`;
+    }
+
+    sections.push({ id: 'controls', num: sn, title: 'FACP Operating Controls & Indicators', content: `
+    <p style="margin-bottom:16px;">Description of each operating control and indicator on the ${panel} fire alarm control panel.</p>
+    <table class="data-table"><thead><tr><th>Control / Indicator</th><th>Type</th><th>Function</th></tr></thead><tbody>
+    <tr><td><strong>System Reset</strong></td><td>Key Switch</td><td>Resets the system after an alarm/trouble has been investigated and corrected.</td></tr>
+    <tr><td><strong>Alarm Silence</strong></td><td>Key Switch</td><td>Silences audible NACs. Visual appliances remain active. New alarm resounds audibles.</td></tr>
+    <tr><td><strong>Drill Switch</strong></td><td>Key Switch</td><td>Activates all NACs for fire drill without generating alarm signal to monitoring.</td></tr>
+    <tr><td><strong>Manual Evacuation</strong></td><td>Key Switch</td><td>Manually activates all NACs and transmits alarm signal to monitoring station.</td></tr>
+    <tr><td><strong>Signal Bypass</strong></td><td>Key Switch</td><td>Disables NAC circuits. Generates TROUBLE when active.</td></tr>
+    <tr><td><strong>Monitor Bypass</strong></td><td>Key Switch</td><td>Disables monitor module inputs. Generates TROUBLE when active.</td></tr>
+    <tr><td><strong>Alarm LED (Red)</strong></td><td>Indicator</td><td>Illuminates steady when any alarm condition exists.</td></tr>
+    <tr><td><strong>Trouble LED (Amber)</strong></td><td>Indicator</td><td>Flashing = unacknowledged trouble. Steady = acknowledged trouble.</td></tr>
+    <tr><td><strong>Supervisory LED (Amber)</strong></td><td>Indicator</td><td>Illuminates when any supervisory condition exists.</td></tr>
+    <tr><td><strong>AC Power LED (Green)</strong></td><td>Indicator</td><td>On = AC mains present. Off = AC power failure (trouble).</td></tr>
+    <tr><td><strong>LCD Display</strong></td><td>Display</td><td>Shows device address, type, location, and status for all conditions.</td></tr>
+    <tr><td><strong>Sonalert (Piezo)</strong></td><td>Audible</td><td>Steady = alarm. Intermittent = trouble. Silenced by Acknowledge or Silence.</td></tr>
+    </tbody></table>
+
+    <h3 style="margin-top:20px;">48-Point LED Annunciator (Door Mount)</h3>
+    <p style="margin-bottom:12px;">A 48 Fixed LED Module is installed at the building entrance. Each LED corresponds to a fire zone, providing first responders with immediate visual indication of the alarm location. Zone lists in the panel programming group devices by area and drive the corresponding annunciator LED.</p>
+
+    <h3 style="margin-top:20px;">City / Monitoring Connection</h3>
+    ${cityHTML}
+  `}); sn++;
+  }
+
+  // NAC / Signal Circuits
+  {
+    const detectedNac = window._nacCircuits || [];
+    const conventional = detectedNac.filter(c => !c.addressable);
+    const addressableZones = detectedNac.filter(c => c.addressable);
+    let nacHTML;
+    if (conventional.length) {
+      nacHTML = `<p style="margin-bottom:16px;">Conventional notification appliance circuits detected in the panel program.</p>
+      <table class="data-table"><thead><tr><th>Circuit</th><th>Description (as programmed)</th></tr></thead><tbody>` +
+        conventional.map(c => `<tr><td><strong>${c.id}</strong></td><td>${c.label}</td></tr>`).join('') +
+        `</tbody></table>`;
+    } else {
+      nacHTML = `<p style="margin-bottom:16px;">Signal circuits programmed on the NAC Power Supply card (Card 1).</p>
+      <table class="data-table"><thead><tr><th>Circuit</th><th>Activation</th></tr></thead><tbody>
+      <tr><td><strong>SIG3</strong></td><td>General Fire Alarm</td></tr>
+      <tr><td><strong>SIG4</strong></td><td>General Fire Alarm</td></tr>
+      <tr><td><strong>SIG5</strong></td><td>General Fire Alarm</td></tr>
+      <tr><td><strong>SIG6</strong></td><td>General Fire Alarm</td></tr>
+      <tr><td><strong>SIG7</strong></td><td>General Fire Alarm</td></tr>
+      </tbody></table>`;
+    }
+    if (addressableZones.length) {
+      nacHTML += `<h3 style="margin-top:20px;">Addressable Notification Zones (TrueAlert)</h3>
+      <p style="margin-bottom:12px;">Logical zones grouping addressable TrueAlert notification appliances.</p>
+      <table class="data-table"><thead><tr><th>Zone</th><th>Description (as programmed)</th></tr></thead><tbody>` +
+        addressableZones.map(c => `<tr><td><strong>${c.id}</strong></td><td>${c.label}</td></tr>`).join('') +
+        `</tbody></table>`;
+    }
+    nacHTML += `<p style="margin-top:12px; font-size:0.85rem; color: var(--text-light);">All signal circuits activate on general fire alarm. Signal Bypass disables all circuits and generates a trouble.</p>
+    ${renderFlowDiagram([
+      {text: 'Fire Alarm', type: 'alarm'},
+      {text: 'FACP Activates NACs', type: 'action'},
+      {text: 'Notification Circuits Energize', type: 'output'},
+      {text: 'Horns/Strobes Active', type: 'output'},
+    ])}`;
+    sections.push({ id: 'signals', num: sn, title: 'Notification Appliance Circuits (NACs)', content: nacHTML }); sn++;
+  }
+
+  // General Alarm Sequence (C29 item E) — adapts to system type from CC data
+  const _sysType = (window._ccData && window._ccData.system_type) || 'single_stage';
+  const _sysTypeLabel = {single_stage: 'Single Stage', two_stage: '2-Stage Alarm', auto_silence: 'Auto-Silence'}[_sysType] || 'Single Stage';
+  const _sysTypeBadge = `<span class="badge ${_sysType === 'single_stage' ? 'badge-alarm' : 'badge-supv'}" style="font-size:0.8rem;margin-left:8px;">${_sysTypeLabel}</span>`;
+
+  let _alarmSteps, _alarmFlow, _alarmIntro;
+  if (_sysType === 'two_stage') {
+    _alarmIntro = `<p style="margin-bottom:12px;"><strong>This system operates as a 2-Stage fire alarm system.</strong> Stage 1 provides an alert condition allowing investigation before full evacuation is initiated.</p>`;
+    _alarmFlow = renderFlowDiagram([
+      {text: 'Initiating Device', type: 'alarm'},
+      {text: 'STAGE 1 — Alert Tone', type: 'action'},
+      {text: 'Staff Investigate', type: 'action'},
+      {text: 'No Action / Timeout', type: 'alarm'},
+      {text: 'STAGE 2 — Evacuation', type: 'alarm'},
+      {text: 'NACs + Central Station', type: 'output'},
+    ]);
+    _alarmSteps = renderSequenceSteps([
+      {title: 'Device Activation', desc: 'Initiating device activates (smoke detector, heat detector, manual pull station, or waterflow switch).'},
+      {title: 'Stage 1 — Alert', desc: 'FACP enters Stage 1 (alert) condition. Alert tone sounds on NACs. FACP display shows alarm device. Staff investigate the cause.'},
+      {title: 'Stage 1 Acknowledged', desc: 'Authorized staff acknowledge the alert at the FACP. The alert tone may be silenced while investigation continues. If the cause is confirmed as a false alarm, the system may be reset.'},
+      {title: 'Stage 2 — Evacuation', desc: 'If the alarm is not acknowledged within the programmed time period, OR if a second device activates, the system escalates to Stage 2. Full evacuation tone activates on all NACs.'},
+      {title: 'Relay Outputs', desc: `Relay outputs activate per programming.${relayDevs.map(d => ' ' + d.address + ': ' + d.location).join(';') || ''}`},
+      {title: 'Central Station Notification', desc: 'Alarm signal is transmitted to the fire signal receiving centre (central monitoring station).' + MONITORING_NOTE},
+    ]);
+  } else if (_sysType === 'auto_silence') {
+    _alarmIntro = `<p style="margin-bottom:12px;"><strong>This system includes auto-silence functionality.</strong> Notification appliances will automatically silence after the programmed period. The alarm condition remains active.</p>`;
+    _alarmFlow = renderFlowDiagram([
+      {text: 'Initiating Device', type: 'alarm'},
+      {text: 'FACP — FIRE ALARM', type: 'alarm'},
+      {text: 'NACs Activate', type: 'output'},
+      {text: 'Auto-Silence Timer', type: 'action'},
+      {text: 'NACs Silence (Alarm persists)', type: 'action'},
+      {text: 'New Alarm → Re-Activate', type: 'alarm'},
+    ]);
+    _alarmSteps = renderSequenceSteps([
+      {title: 'Device Activation', desc: 'Initiating device activates. FACP enters FIRE ALARM condition.'},
+      {title: 'Occupant Notification', desc: 'All NACs activate — audible appliances sound and visual appliances flash.'},
+      {title: 'Auto-Silence', desc: 'After the programmed timer expires, audible NACs automatically silence. Visual appliances (strobes) remain active. Alarm condition stays annunciated on the FACP.'},
+      {title: 'Re-Alert on New Alarm', desc: 'Any subsequent new alarm activation will re-activate all notification appliances.'},
+      {title: 'Central Station', desc: 'Alarm signal transmitted to the fire signal receiving centre.' + MONITORING_NOTE},
+      {title: 'Relay Outputs', desc: `Relay outputs activate per programming.${relayDevs.map(d => ' ' + d.address + ': ' + d.location).join(';') || ''}`},
+    ]);
+  } else {
+    _alarmIntro = `<p style="margin-bottom:12px;"><strong>Upon activation of ANY alarm-initiating device:</strong></p>`;
+    _alarmFlow = renderFlowDiagram([
+      {text: 'Initiating Device', type: 'alarm'},
+      {text: 'SLC Signal', type: 'action'},
+      {text: 'FACP Processes', type: 'action'},
+      {text: 'FIRE ALARM', type: 'alarm'},
+      {text: 'NACs + Relays', type: 'output'},
+      {text: 'Central Station', type: 'output'},
+    ]);
+    _alarmSteps = renderSequenceSteps([
+      {title: 'Device Activation', desc: 'Initiating device activates (smoke detector, heat detector, manual pull station, or waterflow switch).'},
+      {title: 'Signal Transmission', desc: 'Signal is transmitted to the Autocall FACP via the Signaling Line Circuit (SLC).'},
+      {title: 'Signal Processing', desc: 'FACP processes the signal and enters FIRE ALARM condition.'},
+      {title: 'Panel Annunciation', desc: 'System alarm LED illuminates. LCD displays the alarm device address, device type, and location. Internal piezo alarm sounds.'},
+      {title: 'Occupant Notification', desc: 'All Notification Appliance Circuits (NACs) activate. Audible appliances sound EVACUATION tone. Visual appliances (strobes) flash.'},
+      {title: 'Relay Outputs', desc: `Relay outputs activate per programming.${relayDevs.map(d => ' ' + d.address + ': ' + d.location).join(';') || ''}`},
+      {title: 'Central Station Notification', desc: 'Alarm signal is transmitted to the fire signal receiving centre (central monitoring station).' + MONITORING_NOTE},
+      {title: 'Remote Annunciator', desc: 'Remote annunciator (if installed) mirrors the FACP display and alarm indicators.'},
+    ]);
+  }
+  sections.push({ id: 'general-alarm', num: sn, title: `General Alarm Sequence${_sysTypeBadge}`, content: `
+    ${_alarmIntro}${_alarmFlow}${_alarmSteps}
+  `}); sn++;
+
+  // Trouble Sequence
+  sections.push({ id: 'trouble', num: sn, title: 'Trouble Sequence', content: `
+    <p style="margin-bottom:12px;"><strong>Upon detection of ANY trouble condition:</strong></p>
+    ${renderSequenceSteps([
+      {title: 'Fault Detection', desc: 'FACP detects a system fault (open circuit, ground fault, device removal, power failure, etc.).'},
+      {title: 'Panel Annunciation', desc: 'System trouble LED illuminates (amber). LCD displays the trouble type and location. Internal piezo sounds intermittently.'},
+      {title: 'Central Station Notification', desc: 'Trouble signal is transmitted to the fire signal receiving centre.' + MONITORING_NOTE},
+      {title: 'Continued Operation', desc: 'System remains fully operational for all non-faulted circuits and devices.'},
+    ])}
+  `}); sn++;
+
+  // Supervisory Sequence
+  sections.push({ id: 'supv-seq', num: sn, title: 'Supervisory Sequence', content: `
+    <p style="margin-bottom:12px;"><strong>Upon activation of ANY supervisory device:</strong></p>
+    ${renderSequenceSteps([
+      {title: 'Device Activation', desc: 'Supervisory device activates (tamper switch, CO gas sensor, valve position switch, etc.).'},
+      {title: 'Signal Transmission', desc: 'Signal transmitted to the FACP via the SLC.'},
+      {title: 'Annunciation', desc: 'FACP annunciates SUPERVISORY condition. Supervisory LED illuminates. LCD displays device and location.'},
+      {title: 'Central Station', desc: 'Supervisory signal transmitted to the fire signal receiving centre.' + MONITORING_NOTE},
+      {title: 'No NAC Activation', desc: 'Notification appliances DO NOT activate for supervisory conditions.'},
+    ])}
+  `}); sn++;
+
+  // Reset & Silence (C29 items A, B)
+  sections.push({ id: 'reset-silence', num: sn, title: 'System Reset & Alarm Silence', content: `
+    <h3>System Reset</h3>
+    <p style="margin:8px 0 12px;">To reset the system after an alarm or trouble condition:</p>
+    ${renderSequenceSteps([
+      {title: 'Investigate', desc: 'Investigate and correct the cause of the alarm or trouble condition.'},
+      {title: 'Reset', desc: 'Press SYSTEM RESET on the Autocall FACP.'},
+      {title: 'LEDs Clear', desc: 'All alarm and trouble LEDs extinguish.'},
+      {title: 'NACs Deactivate', desc: 'Notification appliances silence and deactivate.'},
+      {title: 'Relays Restore', desc: 'All relay outputs return to their normal (non-alarm) state.'},
+      {title: 'Normal', desc: 'System returns to NORMAL operating condition. Reset signal transmitted to monitoring station.' + MONITORING_NOTE},
+    ])}
+    <h3 style="margin-top:24px;">Alarm Silence</h3>
+    <p style="margin:8px 0 12px;">To silence audible notification appliances during an alarm:</p>
+    ${renderSequenceSteps([
+      {title: 'Silence', desc: 'Press ALARM SILENCE on the Autocall FACP.'},
+      {title: 'Audible Off', desc: 'Audible notification appliances silence (horns/speakers stop sounding).'},
+      {title: 'Visual Remains', desc: 'Visual notification appliances REMAIN ACTIVE (strobes continue flashing).'},
+      {title: 'Alarm Persists', desc: 'Alarm condition remains annunciated on the FACP display.'},
+      {title: 'Resound', desc: 'Any subsequent NEW alarm will re-activate all audible notification appliances.'},
+    ])}
+    <h3 style="margin-top:24px;">Trouble Signal</h3>
+    <p style="margin:8px 0 12px;">When the trouble signal sounds:</p>
+    ${renderSequenceSteps([
+      {title: 'Acknowledge', desc: 'Press ACKNOWLEDGE on the FACP to silence the trouble buzzer.'},
+      {title: 'Identify', desc: 'Read the LCD display to identify the trouble type and affected device/circuit.'},
+      {title: 'Notify', desc: 'Contact Defense Fire Protection for service at the earliest opportunity.'},
+      {title: 'Do Not Reset', desc: 'Do NOT reset the system until the trouble has been investigated and resolved.'},
+    ])}
+  `}); sn++;
+
+  // Location Summary (C29 item D)
+  const sortedLocs = Object.keys(byLoc).sort();
+  sections.push({ id: 'locations', num: sn, title: 'Zone / Location Summary', content: `
+    <p style="margin-bottom:16px;">Area or fire zone protected by each detection circuit. ${sortedLocs.length} locations with ${devices.length} total devices.</p>
+    <div class="location-grid">${sortedLocs.map(loc => {
+      const devs = byLoc[loc];
+      return `<div class="location-card">
+        <h5>${loc} <span class="loc-count">${devs.length}</span></h5>
+        <div class="loc-devices">${devs.map(d => `${d.address} (${d.device_type})`).join(', ')}</div>
+      </div>`;
+    }).join('')}</div>
+  `}); sn++;
+
+  // Field Device Descriptions (C29 item H-iii)
+  const uniqueTypes = [...new Set(devices.map(d => d.device_type))];
+  sections.push({ id: 'device-types', num: sn, title: 'Field Device Type Descriptions', content: `
+    <p style="margin-bottom:16px;">Description of each type of field device installed on this system.</p>
+    <table class="data-table"><thead><tr><th>Device Code</th><th>Description</th><th>Function</th><th>Qty</th></tr></thead>
+    <tbody>${uniqueTypes.map((t, i) => {
+      const info = DEVICE_TYPES[t] || { desc: t, fn: 'UNKNOWN' };
+      const count = devices.filter(d => d.device_type === t).length;
+      return `<tr><td><strong>${t}</strong></td><td>${info.desc}</td><td><span class="badge ${getBadgeClass(info.fn || 'UNKNOWN')}">${info.fn || 'UNKNOWN'}</span></td><td>${count}</td></tr>`;
+    }).join('')}</tbody></table>
+  `}); sn++;
+
+  // Panel Access Codes
+  const _codes = window._accessCodes || {};
+  const _hasCode = _codes.level1 || _codes.level2;
+  if (_hasCode) {
+    let codesHTML = `<p style="margin-bottom:16px;">The following access codes are programmed for this system. <strong>Levels 3 and 4 are for authorized technicians only and are not listed here.</strong></p>
+    <table class="data-table"><thead><tr><th>Level</th><th>Access Code</th><th>Permissions</th></tr></thead><tbody>
+    <tr><td><strong>Level 1</strong></td><td style="font-family:monospace;">Default (no code required)</td><td>View system status, silence alarms, reset the system, perform drill</td></tr>`;
+    if (_codes.level2) codesHTML += `<tr><td><strong>Level 2</strong></td><td style="font-family:monospace;font-size:1.1rem;letter-spacing:2px;">${_codes.level2}</td><td>Disable / enable individual points and zones</td></tr>`;
+    codesHTML += `</tbody></table>
+    <div class="mc-group" style="border-left-color:var(--warning);margin-top:16px;">
+      <h4 style="margin-bottom:4px;">&#9888; Access Code Security</h4>
+      <p style="font-size:0.85rem;">Do not share access codes with unauthorized personnel. If you believe an access code has been compromised, contact <strong>Defense Fire Protection</strong> to have it changed.</p>
+    </div>`;
+    sections.push({ id: 'access-codes', num: sn, title: 'Panel Access Codes', content: codesHTML }); sn++;
+  }
+
+  // Panel Bypass Procedure
+  const _panelSeries = window._panelSeries || '4007ES';
+  const _isTouchscreen = (window._panelSeries === '4010ES' || window._panelSeries === '4100ES') && (window._accessCodes != null);
+  const _bypassStepsKeypad = [
+    {title: 'Enter Menu', desc: 'Press the MENU key on the FACP keypad.'},
+    {title: 'Enter Access Code', desc: 'Using the numeric keypad, enter your Level 2 access code and press ENTER.'},
+    {title: 'Navigate to Disable', desc: 'Use the ▲ ▼ arrow keys to scroll to "Disable Points" (or "Disable/Enable") and press ENTER.'},
+    {title: 'Select Device', desc: 'Enter the device address (e.g. 1-001) or use the arrow keys to browse the point list. Press ENTER to select.'},
+    {title: 'Confirm Disable', desc: 'Press ENTER to confirm. The device is now disabled — a TROUBLE condition will appear on the FACP and a trouble signal will be sent to the monitoring station.' + MONITORING_NOTE},
+    {title: 'Exit Menu', desc: 'Press MENU or ESC to exit. The FACP will return to normal display showing the active trouble for the disabled point.'},
+    {title: 'Re-Enable', desc: 'To restore the device, repeat the above steps, select the same point, and press ENTER to toggle it back to enabled. The trouble clears and normal operation resumes.'},
+  ];
+  const _bypassStepsTouch = [
+    {title: 'Enter Menu', desc: 'Touch the MENU button on the FACP touchscreen display.'},
+    {title: 'Enter Access Code', desc: 'Enter your Level 2 access code using the on-screen keypad and touch ENTER.'},
+    {title: 'Select Disable/Enable', desc: 'Touch "Disable/Enable" from the menu options.'},
+    {title: 'Find Device', desc: 'Browse the list or use the search field to locate the device by address or description. Touch the device to select it.'},
+    {title: 'Confirm Disable', desc: 'Touch DISABLE to confirm. A TROUBLE condition will appear and a trouble signal will be sent to the monitoring station.' + MONITORING_NOTE},
+    {title: 'Exit', desc: 'Touch BACK or HOME to return to the normal display. The trouble for the disabled point will be shown.'},
+    {title: 'Re-Enable', desc: 'To restore, repeat the steps, locate the same device (shown as DISABLED), and touch ENABLE. The trouble clears and normal operation resumes.'},
+  ];
+  sections.push({ id: 'bypass-procedure', num: sn, title: 'Disabling / Bypassing a Device or Zone', content: `
+    <p style="margin-bottom:12px;">If a device or zone is causing nuisance alarms or requires temporary isolation for maintenance, it can be disabled at the FACP by authorized personnel. <strong>A disabled point generates a TROUBLE condition and is transmitted to the monitoring station.</strong></p>
+    <div class="mc-group" style="border-left-color:var(--warning);margin-bottom:16px;">
+      <h4 style="margin-bottom:4px;">&#9888; Notify Your Monitoring Station</h4>
+      <p style="font-size:0.85rem;">Before disabling any device, notify your monitoring station (central station) to prevent unnecessary dispatching. Notify them again when the device is restored.</p>
+    </div>
+    <h3 style="margin-bottom:8px;">Bypass Procedure — ${_panelSeries}</h3>
+    ${renderSequenceSteps(_panelSeries === '4010ES' || _panelSeries === '4100ES' ? _bypassStepsTouch : _bypassStepsKeypad)}
+  `}); sn++;
+
+  // C29 Compliance Checklist
+  const c29Items = [
+    { ref: 'A', text: 'Instructions for resetting the system and silencing alarm signals', status: 'yes', link: 'reset-silence' },
+    { ref: 'B', text: 'Instructions for silencing the trouble signal and action to be taken', status: 'yes', link: 'reset-silence' },
+    { ref: 'C', text: 'Description of the function of each operating control and indicator on the FACP', status: 'yes', link: 'overview' },
+    { ref: 'D', text: 'Description of the area or zone protected by each alarm detection circuit', status: 'yes', link: 'locations' },
+    { ref: 'E', text: 'Description of alarm signal operation', status: 'yes', link: 'general-alarm' },
+    { ref: 'F', text: 'Description of ancillary equipment controlled by the fire alarm system', status: relayDevs.length ? 'yes' : 'na', link: 'outputs' },
+    { ref: 'G', text: 'Smoke control system sequence of operation (if applicable)', status: 'na', link: '' },
+    { ref: 'H', text: 'Building diagrams indicating type and location of smoke control equipment', status: 'na', link: '' },
+    { ref: 'H-i', text: 'Sequence of Operation', status: 'yes', link: 'general-alarm' },
+    { ref: 'H-ii', text: 'Operating Instructions', status: 'yes', link: 'bypass-procedure' },
+    { ref: 'H-iii', text: 'Description of each type of field device', status: 'yes', link: 'device-types' },
+    { ref: 'H-iv', text: 'Details of input to programmed output functions', status: relayDevs.length ? 'yes' : 'na', link: 'outputs' },
+    { ref: 'H-v', text: 'Connection to fire signal receiving centre', status: 'yes', link: 'general-alarm' },
+    { ref: 'H-vi', text: 'Previous Verification Report(s) if applicable', status: 'na', link: '' },
+    { ref: 'H-vii', text: 'As-Built drawings of the building fire alarm system', status: 'na', link: '' },
+    { ref: 'H-viii', text: 'Copy of site-specific software (if applicable)', status: 'na', link: '' },
+  ];
+  sections.push({ id: 'c29', num: sn, title: 'CAN/ULC-S524 C29 Documentation Checklist', content: `
+    <p style="margin-bottom:16px;">This checklist tracks compliance with CAN/ULC-S524 Section C29 documentation requirements. Items marked with a checkmark are addressed in this document.</p>
+    ${c29Items.map(item => `<div class="checklist-item" ${item.link ? `onclick="scrollToSection('${item.link}')" style="cursor:pointer;"` : ''}>
+      <div class="check-icon ${item.status === 'yes' ? 'check-yes' : item.status === 'no' ? 'check-no' : 'check-na'}">
+        ${item.status === 'yes' ? '&#10003;' : item.status === 'no' ? '&#10007;' : 'N/A'}
+      </div>
+      <div class="check-label">${item.text}</div>
+      <div class="check-ref">${item.ref}</div>
+    </div>`).join('')}
+  `}); sn++;
+
+  // ── BUILD HTML ──
+  let html = heroHTML;
+  for (const s of sections) {
+    html += `<div class="card" id="section-${s.id}">
+      <div class="card-header" onclick="toggleSection('${s.id}')">
+        <h2><span class="section-num">${s.num}</span> ${s.title}</h2>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="card-body" id="body-${s.id}">${s.content}</div>
+    </div>`;
+  }
+
+  document.getElementById('main-content').innerHTML = html;
+
+  // Build nav
+  document.getElementById('section-nav').innerHTML = sections.map(s =>
+    `<a href="#section-${s.id}" onclick="event.preventDefault(); scrollToSection('${s.id}')">${s.title}</a>`
+  ).join('');
+
+  // Store devices globally for modal
+  window._devices = devices;
+
+  // Intersection observer for nav highlighting
+  const observer = new IntersectionObserver(entries => {
+    for (const entry of entries) {
+      if (entry.isIntersecting) {
+        const id = entry.target.id.replace('section-', '');
+        document.querySelectorAll('.section-nav a').forEach(a => {
+          a.classList.toggle('active', a.getAttribute('href') === '#section-' + id);
+        });
+      }
+    }
+  }, { rootMargin: '-140px 0px -60% 0px' });
+  document.querySelectorAll('.card').forEach(c => observer.observe(c));
+}
+
+// ─── INTERACTION ───
+function toggleSection(id) {
+  const body = document.getElementById('body-' + id);
+  const header = body.previousElementSibling;
+  body.classList.toggle('collapsed');
+  header.classList.toggle('collapsed');
+}
+
+function expandAll() {
+  document.querySelectorAll('.card-body').forEach(b => b.classList.remove('collapsed'));
+  document.querySelectorAll('.card-header').forEach(h => h.classList.remove('collapsed'));
+}
+
+function collapseAll() {
+  document.querySelectorAll('.card-body').forEach(b => b.classList.add('collapsed'));
+  document.querySelectorAll('.card-header').forEach(h => h.classList.add('collapsed'));
+}
+
+function scrollToSection(id) {
+  const el = document.getElementById('section-' + id);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function showDeviceDetail(address) {
+  const dev = window._devices.find(d => d.address === address);
+  if (!dev) return;
+  document.getElementById('modal-title').textContent = `${dev.address} - ${dev.location}`;
+  document.getElementById('modal-body').innerHTML = `
+    <div class="detail-row"><span class="detail-label">Address</span><span class="detail-value">${dev.address}</span></div>
+    <div class="detail-row"><span class="detail-label">Device Type</span><span class="detail-value">${dev.device_type}</span></div>
+    <div class="detail-row"><span class="detail-label">Description</span><span class="detail-value">${dev.desc}</span></div>
+    <div class="detail-row"><span class="detail-label">Signal Type</span><span class="detail-value">${dev.signal_type} (${SIGNAL_LABELS[dev.signal_type] || dev.signal_type})</span></div>
+    <div class="detail-row"><span class="detail-label">Location</span><span class="detail-value">${dev.location}</span></div>
+    <div class="detail-row"><span class="detail-label">Function</span><span class="detail-value"><span class="badge ${getBadgeClass(dev.fn)}">${dev.fn}</span></span></div>
+    <div class="detail-row"><span class="detail-label">Category</span><span class="detail-value">${CAT_LABELS[dev.cat] || dev.cat}</span></div>
+  `;
+  document.getElementById('modal-overlay').classList.add('active');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('active');
+}
+
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeModal();
+});
+
+// ─── FILE HANDLING ───
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  if (e.dataTransfer.files.length) processFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => { if (e.target.files.length) processFile(e.target.files[0]); });
+
+function processFile(file) {
+  window._fileName = file.name;
+  document.getElementById('upload-screen').style.display = 'none';
+  const loading = document.getElementById('loading-screen');
+  loading.classList.remove('hidden');
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const statuses = ['Parsing device points...', 'Identifying panel model...', 'Analyzing multi-criteria groups...', 'Building sequences...', 'Generating interactive document...'];
+    let si = 0;
+    const interval = setInterval(() => {
+      si++;
+      if (si < statuses.length) {
+        document.getElementById('loading-status').textContent = statuses[si];
+      }
+    }, 400);
+
+    setTimeout(() => {
+      const devices = parseCSV(e.target.result);
+      clearInterval(interval);
+      loading.classList.add('hidden');
+      document.getElementById('app').style.display = 'block';
+      renderApp(devices);
+    }, 2000);
+  };
+  reader.readAsText(file);
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+});
+</script>
+</body>
+</html>
