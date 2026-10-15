@@ -24,7 +24,7 @@ from pypdf import PdfWriter, PdfReader
 # ─── CONFIG / PERSISTENCE ───────────────────────────────────────────────────
 
 APP_TITLE = "Turnover Package Tool"
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.1.1"
 GITHUB_REPO = "KGBAhart1/dfp-turnover-tool"
 CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".soo_extractor")
 CONFIG_FILE = os.path.join(CONFIG_DIR, "config.json")
@@ -4350,23 +4350,86 @@ def _show_splash(root):
     return splash
 
 
+def _show_update_dialog(root, info):
+    if not info.get("download_url"):
+        if messagebox.askyesno("Update Available",
+                f"A new version is available: {info['version']} (you have {APP_VERSION}).\n\n"
+                "Open the download page now?"):
+            import webbrowser
+            webbrowser.open(info["url"])
+        return
+    if not messagebox.askyesno("Update Available",
+            f"A new version is available: {info['version']} (you have {APP_VERSION}).\n\n"
+            "Download and install it now? The app will close and restart automatically."):
+        return
+    _download_and_install_update(root, info)
+
+
+def _download_and_install_update(root, info):
+    import threading, tempfile, subprocess, urllib.request
+
+    win = tk.Toplevel(root)
+    win.title("Updating")
+    win.geometry("340x90")
+    win.resizable(False, False)
+    win.transient(root)
+    win.protocol("WM_DELETE_WINDOW", lambda: None)
+    status = tk.StringVar(value=f"Downloading {info['version']}...")
+    ttk.Label(win, textvariable=status).pack(pady=(14, 6))
+    bar = ttk.Progressbar(win, length=290, mode="determinate")
+    bar.pack()
+
+    dest = os.path.join(tempfile.gettempdir(), "DFP_Turnover_Tool_Setup.exe")
+    result = {}
+
+    def worker():
+        try:
+            with urllib.request.urlopen(info["download_url"], timeout=30) as resp:
+                total = int(resp.headers.get("Content-Length") or 0)
+                done = 0
+                with open(dest, "wb") as f:
+                    while True:
+                        chunk = resp.read(65536)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+                        done += len(chunk)
+                        if total:
+                            root.after(0, lambda d=done: bar.config(value=d * 100 / total))
+            result["ok"] = True
+        except Exception as e:
+            result["err"] = str(e)
+        root.after(0, finish)
+
+    def finish():
+        win.destroy()
+        if result.get("ok"):
+            try:
+                subprocess.Popen(
+                    [dest, "/SILENT", "/SUPPRESSMSGBOXES", "/CLOSEAPPLICATIONS", "/RELAUNCH=1"],
+                    creationflags=0x00000008 | 0x00000200, close_fds=True)
+            except Exception as e:
+                messagebox.showerror("Update Failed", f"Could not start the installer:\n{e}")
+                return
+            root.destroy()
+        else:
+            if messagebox.askyesno("Update Failed",
+                    f"Download failed: {result.get('err')}\n\nOpen the download page instead?"):
+                import webbrowser
+                webbrowser.open(info["url"])
+
+    threading.Thread(target=worker, daemon=True).start()
+
+
 def _check_for_update_async(root):
     import threading
 
     def worker():
         info = check_for_update()
         if info:
-            root.after(0, lambda: _show_update_dialog(info))
+            root.after(0, lambda: _show_update_dialog(root, info))
 
     threading.Thread(target=worker, daemon=True).start()
-
-
-def _show_update_dialog(info):
-    if messagebox.askyesno("Update Available",
-            f"A new version is available: {info['version']} (you have {APP_VERSION}).\n\n"
-            "Open the download page now?"):
-        import webbrowser
-        webbrowser.open(info["url"])
 
 
 def main():
