@@ -1,6 +1,6 @@
 ; Inno Setup script for DFP Turnover Tool
 #define MyAppName "DFP Turnover Tool"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "Defense Fire Protection"
 #define MyAppExeName "DFP Turnover Tool.exe"
 

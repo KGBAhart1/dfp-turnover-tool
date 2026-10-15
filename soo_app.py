@@ -24,7 +24,7 @@ from pypdf import PdfWriter, PdfReader
 # ─── CONFIG / PERSISTENCE ───────────────────────────────────────────────────
 
 APP_TITLE = "Turnover Package Tool"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 GITHUB_REPO = "KGBAhart1/dfp-turnover-tool"
 CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".soo_extractor")
 CONFIG_FILE = os.path.join(CONFIG_DIR, "config.json")
@@ -643,10 +643,8 @@ def parse_custom_controls(pdf_path):
     features = []
     system_type = "single_stage"
 
-    if any(kw in combined for kw in ["2STAGE", "2 STAGE", "TWOSTAGE", "TWO STAGE",
-                                      "STAGE1", "STAGE 1", "STAGE2", "STAGE 2",
-                                      "ALERT TONE", "EVACUATION", "PRE-SIGNAL", "PRE SIGNAL",
-                                      "2-STAGE", "TWO-STAGE"]):
+    if any(kw in (all_labels + " " + prog_labels) for kw in ["2STAGE", "2 STAGE", "2-STAGE",
+                                      "TWOSTAGE", "TWO STAGE", "TWO-STAGE"]):
         system_type = "two_stage"
         features.append("two_stage")
 
@@ -1000,8 +998,9 @@ def pdf_check_space(pdf, needed=40):
 # ─── SOO PDF GENERATION ─────────────────────────────────────────────────────
 
 def generate_soo_pdf(devices, config, output_path, job_name, panel_model, notes="",
-                      nac_circuits=None, bypass_switches=None):
+                      nac_circuits=None, bypass_switches=None, stage_info=None):
     nac_circuits = nac_circuits or []
+    stage_info = stage_info or {}
     bypass_switches = bypass_switches or []
     pdf = BasePDF(
         logo_path=config.get("logo_path"),
@@ -1359,17 +1358,32 @@ def generate_soo_pdf(devices, config, output_path, job_name, panel_model, notes=
     if config.get("include_general_alarm", True):
         pdf.add_page()
         pdf_section_title(pdf, f"{sec_num}. GENERAL ALARM SEQUENCE")
-        pdf_body_text(pdf, "Upon activation of ANY alarm-initiating device:", bold=True)
-        pdf.ln(2)
-        for i, s in enumerate(["INITIATING DEVICE activates (smoke, heat, pull station, waterflow)",
-            "Signal transmitted to Autocall FACP via SLC",
-            "FACP processes signal and enters FIRE ALARM condition",
-            "Panel: alarm LED, LCD displays address/type/location, piezo sounds",
-            "NACs activate: audible EVACUATION tone, visual strobes",
-            "Relay outputs activate per programming",
-            "Alarm signal transmitted to central monitoring station",
-            "Remote annunciator mirrors FACP display"], 1):
-            pdf_numbered(pdf, i, s)
+        if stage_info.get("system_type") == "two_stage":
+            delay = stage_info.get("stage2_delay_min", "")
+            delay_txt = f"{delay} minute(s)" if delay else "the programmed delay"
+            pdf_body_text(pdf, "This system operates as a 2-STAGE fire alarm system.", bold=True)
+            pdf.ln(2)
+            steps = ["INITIATING DEVICE activates (smoke, heat, pull station, waterflow)",
+                "FACP enters STAGE 1 (alert): alert tone sounds, panel displays alarm device",
+                "Staff investigate and may acknowledge the alarm at the FACP",
+                f"If the alarm is not acknowledged within {delay_txt}, the system escalates to STAGE 2",
+                "STAGE 2 (evacuation): NACs activate with audible EVACUATION tone and visual strobes",
+                "Relay outputs activate per programming",
+                "Alarm signal transmitted to central monitoring station",
+                "Remote annunciator mirrors FACP display"]
+        else:
+            pdf_body_text(pdf, "Upon activation of ANY alarm-initiating device:", bold=True)
+            pdf.ln(2)
+            steps = ["INITIATING DEVICE activates (smoke, heat, pull station, waterflow)",
+                "Signal transmitted to Autocall FACP via SLC",
+                "FACP processes signal and enters FIRE ALARM condition",
+                "Panel: alarm LED, LCD displays address/type/location, piezo sounds",
+                "NACs activate: audible EVACUATION tone, visual strobes",
+                "Relay outputs activate per programming",
+                "Alarm signal transmitted to central monitoring station",
+                "Remote annunciator mirrors FACP display"]
+        for i, s_ in enumerate(steps, 1):
+            pdf_numbered(pdf, i, s_)
         relay_devs = by_cat.get("RELAY", [])
         if relay_devs:
             pdf.ln(3)
@@ -2148,6 +2162,27 @@ class TurnoverApp:
         series_combo.bind("<<ComboboxSelected>>", _on_series_change)
         _on_series_change()
 
+        ttk.Label(info_frame, text="Alarm Type:").pack(anchor="w")
+        self.stage_type_var = tk.StringVar(value="Single Stage")
+        stage_row = ttk.Frame(info_frame)
+        stage_row.pack(fill="x", pady=(0, 6))
+        stage_combo = ttk.Combobox(stage_row, textvariable=self.stage_type_var,
+                                   values=["Single Stage", "2 Stage"], width=14, state="readonly")
+        stage_combo.pack(side="left")
+        ttk.Label(stage_row, text="  Stage 2 delay (min):").pack(side="left")
+        self.stage2_delay_var = tk.StringVar(value="5")
+        self.stage2_delay_entry = ttk.Entry(stage_row, textvariable=self.stage2_delay_var, width=5)
+        self.stage2_delay_entry.pack(side="left", padx=(4, 0))
+
+        def _on_stage_change(*_a):
+            two = self.stage_type_var.get() == "2 Stage"
+            self.stage2_delay_entry.config(state="normal" if two else "disabled")
+            if hasattr(self, "vi_vars"):
+                self._apply_vi_autodetect()
+        stage_combo.bind("<<ComboboxSelected>>", _on_stage_change)
+        self._on_stage_change = _on_stage_change
+        _on_stage_change()
+
         ttk.Label(info_frame, text="Notes:").pack(anchor="w")
         self.notes_text = tk.Text(info_frame, height=3, width=38, font=("Segoe UI", 9))
         self.notes_text.pack(fill="x", pady=(0, 4))
@@ -2838,6 +2873,7 @@ class TurnoverApp:
         fname = os.path.basename(path)
         self.cc_file_var.set(fname)
         stype = self.cc_data.get("system_type", "single_stage")
+        self._prefill_stage_from_cc(stype)
         eq_count = len(self.cc_data.get("equations", []))
         feats = self.cc_data.get("features", [])
         type_labels = {"single_stage": "Single Stage", "two_stage": "2-Stage",
@@ -2973,6 +3009,7 @@ class TurnoverApp:
             self.cc_data = {**best_cc, "features": merged_features}
             self.cc_pdf_path = path
             stype = self.cc_data.get("system_type", "single_stage")
+            self._prefill_stage_from_cc(stype)
             eq_total = sum(len(c.get("equations", [])) for c in all_cc)
             type_labels = {"single_stage": "Single Stage", "two_stage": "2-Stage",
                            "auto_silence": "Auto-Silence"}
@@ -3273,6 +3310,30 @@ class TurnoverApp:
         names = ", ".join(label for label, _ in docs)
         self.tp_oi_preview_var.set(f"Will include: {names}")
 
+    def _prefill_stage_from_cc(self, stype):
+        """Suggest 2 Stage when the CC program is explicitly labelled so; user can change it."""
+        if stype == "two_stage" and self.stage_type_var.get() != "2 Stage":
+            self.stage_type_var.set("2 Stage")
+            self._on_stage_change()
+
+    def _stage_info(self):
+        two = self.stage_type_var.get() == "2 Stage"
+        info = {"system_type": "two_stage" if two else "single_stage"}
+        if two:
+            info["stage2_delay_min"] = self.stage2_delay_var.get().strip()
+        return info
+
+    def _effective_cc_data(self):
+        """cc_data with system_type overridden by the user's Alarm Type choice."""
+        cc = dict(self.cc_data or {})
+        info = self._stage_info()
+        if info["system_type"] == "two_stage":
+            cc["system_type"] = "two_stage"
+            cc["stage2_delay_min"] = info.get("stage2_delay_min", "")
+        elif cc.get("system_type") == "two_stage":
+            cc["system_type"] = "single_stage"
+        return cc
+
     def _apply_fsrc_autodetect(self):
         self._apply_vi_autodetect()
 
@@ -3342,7 +3403,7 @@ class TurnoverApp:
                 set_check(var_key, "Y" if kind in kinds_present else "A")
 
         # ── 2-stage vs single-stage (from CC data or system type) ───────────
-        sys_type = (self.cc_data or {}).get("system_type", "single_stage")
+        sys_type = self._effective_cc_data().get("system_type", "single_stage")
         is_two_stage = sys_type == "two_stage"
 
         # Sheet 28 A/B: single-stage vs two-stage
@@ -3469,7 +3530,8 @@ class TurnoverApp:
             generate_soo_pdf(self.devices, self.config, path,
                            self.job_var.get(), self.panel_var.get(),
                            self.notes_text.get("1.0", "end"),
-                           nac_circuits=self.nac_circuits, bypass_switches=self.bypass_switches)
+                           nac_circuits=self.nac_circuits, bypass_switches=self.bypass_switches,
+                           stage_info=self._stage_info())
             self.status_var.set(f"SOO exported: {os.path.basename(path)}")
             if messagebox.askyesno("Success", f"SOO PDF saved to:\n{path}\n\nOpen it now?"):
                 os.startfile(path)
@@ -3899,6 +3961,8 @@ class TurnoverApp:
             "city_relays": self.city_relays,
             "bypass_switches": self.bypass_switches,
             "cc_data": self.cc_data,
+            "stage_type": self.stage_type_var.get(),
+            "stage2_delay": self.stage2_delay_var.get(),
             "attached_docs": doc_records,
         }
         with open(os.path.join(proj_path, "project_data.json"), "w", encoding="utf-8") as f:
@@ -3965,6 +4029,9 @@ class TurnoverApp:
         self.city_relays = data.get("city_relays", [])
         self.bypass_switches = data.get("bypass_switches", [])
         self.cc_data = data.get("cc_data")
+        self.stage_type_var.set(data.get("stage_type", "Single Stage"))
+        self.stage2_delay_var.set(data.get("stage2_delay", "5"))
+        self._on_stage_change()
         self.csv_path = None
 
         self.attached_docs = []
@@ -4102,7 +4169,7 @@ class TurnoverApp:
         nac_circuits_json = json.dumps(getattr(self, 'nac_circuits', []))
         city_relays_json = json.dumps(getattr(self, 'city_relays', []))
         bypass_switches_json = json.dumps(getattr(self, 'bypass_switches', []))
-        cc_data_json = json.dumps(getattr(self, 'cc_data', None))
+        cc_data_json = json.dumps(self._effective_cc_data())
         access_codes_json = json.dumps({
             "level1": getattr(self, 'code_l1_var', tk.StringVar()).get(),
             "level2": getattr(self, 'code_l2_var', tk.StringVar()).get(),
@@ -4168,7 +4235,8 @@ class TurnoverApp:
                 generate_soo_pdf(self.devices, self.config, soo_path,
                                self.job_var.get(), self.panel_var.get(),
                                self.notes_text.get("1.0", "end"),
-                               nac_circuits=self.nac_circuits, bypass_switches=self.bypass_switches)
+                               nac_circuits=self.nac_circuits, bypass_switches=self.bypass_switches,
+                           stage_info=self._stage_info())
                 pdfs.append(soo_path)
 
             if self.tp_include_oi.get():

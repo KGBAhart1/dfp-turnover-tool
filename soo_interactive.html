@@ -897,6 +897,8 @@ function renderApp(devices) {
   const _sysTypeLabel = {single_stage: 'Single Stage', two_stage: '2-Stage Alarm', auto_silence: 'Auto-Silence'}[_sysType] || 'Single Stage';
   const _sysTypeBadge = `<span class="badge ${_sysType === 'single_stage' ? 'badge-alarm' : 'badge-supv'}" style="font-size:0.8rem;margin-left:8px;">${_sysTypeLabel}</span>`;
 
+  const _s2Delay = (window._ccData && window._ccData.stage2_delay_min) || '';
+  const _s2DelayTxt = _s2Delay ? `${_s2Delay} minute${String(_s2Delay) === '1' ? '' : 's'}` : 'the programmed time period';
   let _alarmSteps, _alarmFlow, _alarmIntro;
   if (_sysType === 'two_stage') {
     _alarmIntro = `<p style="margin-bottom:12px;"><strong>This system operates as a 2-Stage fire alarm system.</strong> Stage 1 provides an alert condition allowing investigation before full evacuation is initiated.</p>`;
@@ -904,7 +906,7 @@ function renderApp(devices) {
       {text: 'Initiating Device', type: 'alarm'},
       {text: 'STAGE 1 — Alert Tone', type: 'action'},
       {text: 'Staff Investigate', type: 'action'},
-      {text: 'No Action / Timeout', type: 'alarm'},
+      {text: `No Action / ${_s2Delay ? _s2Delay + ' min ' : ''}Timeout`, type: 'alarm'},
       {text: 'STAGE 2 — Evacuation', type: 'alarm'},
       {text: 'NACs + Central Station', type: 'output'},
     ]);
@@ -912,7 +914,7 @@ function renderApp(devices) {
       {title: 'Device Activation', desc: 'Initiating device activates (smoke detector, heat detector, manual pull station, or waterflow switch).'},
       {title: 'Stage 1 — Alert', desc: 'FACP enters Stage 1 (alert) condition. Alert tone sounds on NACs. FACP display shows alarm device. Staff investigate the cause.'},
       {title: 'Stage 1 Acknowledged', desc: 'Authorized staff acknowledge the alert at the FACP. The alert tone may be silenced while investigation continues. If the cause is confirmed as a false alarm, the system may be reset.'},
-      {title: 'Stage 2 — Evacuation', desc: 'If the alarm is not acknowledged within the programmed time period, OR if a second device activates, the system escalates to Stage 2. Full evacuation tone activates on all NACs.'},
+      {title: 'Stage 2 — Evacuation', desc: `If the alarm is not acknowledged within ${_s2DelayTxt}, OR if a second device activates, the system escalates to Stage 2. Full evacuation tone activates on all NACs.`},
       {title: 'Relay Outputs', desc: `Relay outputs activate per programming.${relayDevs.map(d => ' ' + d.address + ': ' + d.location).join(';') || ''}`},
       {title: 'Central Station Notification', desc: 'Alarm signal is transmitted to the fire signal receiving centre (central monitoring station).' + MONITORING_NOTE},
     ]);
